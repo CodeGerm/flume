@@ -346,7 +346,7 @@ public class TaildirSource extends AbstractSource implements
     List<Map> posInfos = Lists.newArrayList();
     for (Long inode : existingInodes) {
       TailFile tf = reader.getTailFiles().get(inode);
-      posInfos.add(ImmutableMap.of("inode", inode, "pos", tf.getPos(), "file", tf.getPath()));
+      posInfos.add(ImmutableMap.of("inode", inode, "pos", tf.getPos(), "file", tf.getPath().replace("\\","\\\\")));
     }
     return new Gson().toJson(posInfos);
   }

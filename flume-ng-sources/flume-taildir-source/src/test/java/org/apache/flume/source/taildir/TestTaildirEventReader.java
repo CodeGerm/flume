@@ -34,6 +34,7 @@ import org.junit.Test;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -129,7 +130,8 @@ public class TestTaildirEventReader {
 
     ReliableTaildirEventReader reader = getReader();
     List<String> out = Lists.newArrayList();
-    for (TailFile tf : reader.getTailFiles().values()) {
+    Collection<TailFile> tailFiles = reader.getTailFiles().values();
+    for (TailFile tf : tailFiles) {
       List<String> bodies = bodiesAsStrings(reader.readEvents(tf, 2));
       out.addAll(bodies);
       reader.commit();
@@ -408,22 +410,16 @@ public class TestTaildirEventReader {
     long pos = f2.length();
     int i = 1;
     File posFile = new File(posFilePath);
+    Files.append( "[", posFile, Charsets.UTF_8);
     for (TailFile tf : tailFiles.values()) {
-      Files.append(i == 1 ? "[" : "", posFile, Charsets.UTF_8);
-      Files.append(String.format("{\"inode\":%s,\"pos\":%s,\"file\":\"%s\"}",
-          tf.getInode(), pos, tf.getPath()), posFile, Charsets.UTF_8);
-      Files.append(i == 3 ? "]" : ",", posFile, Charsets.UTF_8);
+      Files.append(String.format("{\"inode\":%s,\"pos\":%s,\"file\":\"%s\"},",
+          tf.getInode(), pos, tf.getPath().replace("\\","\\\\")), posFile, Charsets.UTF_8);
       i++;
     }
+    Files.append("]" , posFile, Charsets.UTF_8);
     reader.loadPositionFile(posFilePath);
-
     for (TailFile tf : tailFiles.values()) {
-      if (tf.getPath().equals(tmpDir + "file3")) {
-        // when given position is larger than file size
-        assertEquals(0, tf.getPos());
-      } else {
-        assertEquals(pos, tf.getPos());
-      }
+      assertEquals(pos, tf.getPos());
     }
   }
 

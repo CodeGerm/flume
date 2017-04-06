@@ -30,10 +30,14 @@ import org.apache.flume.FlumeException;
 import org.apache.flume.annotations.InterfaceAudience;
 import org.apache.flume.annotations.InterfaceStability;
 import org.apache.flume.client.avro.ReliableEventReader;
+import org.apache.flume.tools.PlatformDetect;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import sun.nio.ch.FileKey;
 
 import java.io.File;
+import java.io.FileDescriptor;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
@@ -274,8 +278,17 @@ public class ReliableTaildirEventReader implements ReliableEventReader {
 
 
   private long getInode(File file) throws IOException {
-    long inode = (long) Files.getAttribute(file.toPath(), "unix:ino");
-    return inode;
+      if (PlatformDetect.isWindows()) {
+          // windows does not support "unix:ino"
+          try (FileInputStream fis = new FileInputStream(file)) {
+              FileDescriptor fd = fis.getFD();
+              FileKey fileKey = FileKey.create(fd);
+              return fileKey.hashCode();
+          }
+      } else {
+          //non-windows do not handle getFD() well so use original method which does.
+          return (long) Files.getAttribute(file.toPath(), "unix:ino");
+      }
   }
 
   private TailFile openFile(File file, Map<String, String> headers, long inode, long pos) {
