@@ -29,7 +29,7 @@ limitations under the License.
   <groupId>org.apache.flume.flume-ng-sources</groupId>
   <artifactId>flume-taildir-source</artifactId>
   <name>Flume Taildir Source</name>
-  <version>1.7.0-patch4</version>
+  <version>1.7.0-patch5</version>
   
   <build>
     <plugins>
