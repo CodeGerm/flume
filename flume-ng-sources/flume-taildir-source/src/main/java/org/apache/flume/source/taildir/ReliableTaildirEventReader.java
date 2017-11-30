@@ -219,7 +219,7 @@ public class ReliableTaildirEventReader implements ReliableEventReader {
   @Override
   public void close() throws IOException {
     for (TailFile tf : tailFiles.values()) {
-      if (tf.getRaf() != null) tf.getRaf().close();
+      if (tf.getFileChannel() != null) tf.getFileChannel().close();
     }
   }
 
@@ -256,7 +256,7 @@ public class ReliableTaildirEventReader implements ReliableEventReader {
         } else {
           boolean updated = tf.getLastUpdated() < f.lastModified() || tf.getPos() != f.length();
           if (updated) {
-            if (tf.getRaf() == null) {
+            if (tf.getFileChannel() == null) {
               tf = openFile(f, headers, inode, tf.getPos());
             }
             if (f.length() < tf.getPos()) {

@@ -19,19 +19,23 @@
 
 package org.apache.flume.source.taildir;
 
-import com.google.common.collect.Lists;
+import static org.apache.flume.source.taildir.TaildirSourceConfigurationConstants.BYTE_OFFSET_HEADER_KEY;
+
+import java.io.File;
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
+import java.util.List;
+import java.util.Map;
+
 import org.apache.flume.Event;
 import org.apache.flume.event.EventBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.RandomAccessFile;
-import java.util.List;
-import java.util.Map;
-
-import static org.apache.flume.source.taildir.TaildirSourceConfigurationConstants.BYTE_OFFSET_HEADER_KEY;
+import com.google.common.collect.Lists;
 
 public class TailFile {
   private static final Logger logger = LoggerFactory.getLogger(TailFile.class);
@@ -42,7 +46,7 @@ public class TailFile {
   private static final int BUFFER_SIZE = 8192;
   private static final int NEED_READING = -1;
 
-  private RandomAccessFile raf;
+  private FileChannel fileChannel;
   private final String path;
   private final long inode;
   private long pos;
@@ -56,9 +60,9 @@ public class TailFile {
 
   public TailFile(File file, Map<String, String> headers, long inode, long pos)
       throws IOException {
-    this.raf = new RandomAccessFile(file, "r");
+	this.fileChannel = FileChannel.open(Paths.get(file.getAbsolutePath()), StandardOpenOption.READ);
     if (pos > 0) {
-      raf.seek(pos);
+      fileChannel.position(pos);
       lineReadPos = pos;
     }
     this.path = file.getAbsolutePath();
@@ -71,8 +75,8 @@ public class TailFile {
     this.bufferPos = NEED_READING;
   }
 
-  public RandomAccessFile getRaf() {
-    return raf;
+  public FileChannel getFileChannel() {
+    return fileChannel;
   }
 
   public String getPath() {
@@ -129,7 +133,7 @@ public class TailFile {
     return false;
   }
   public void updateFilePos(long pos) throws IOException {
-    raf.seek(pos);
+	fileChannel.position(pos);
     lineReadPos = pos;
     bufferPos = NEED_READING;
     oldBuffer = new byte[0];
@@ -157,7 +161,7 @@ public class TailFile {
     }
     if (backoffWithoutNL && !line.lineSepInclude) {
       logger.info("Backing off in file without newline: "
-          + path + ", inode: " + inode + ", pos: " + raf.getFilePointer());
+          + path + ", inode: " + inode + ", pos: " + fileChannel.position());
       updateFilePos(posTmp);
       return null;
     }
@@ -169,12 +173,13 @@ public class TailFile {
   }
 
   private void readFile() throws IOException {
-    if ((raf.length() - raf.getFilePointer()) < BUFFER_SIZE) {
-      buffer = new byte[(int) (raf.length() - raf.getFilePointer())];
+    if ((fileChannel.size() - fileChannel.position()) < BUFFER_SIZE) {
+      buffer = new byte[(int) (fileChannel.size() - fileChannel.position())];
     } else {
       buffer = new byte[BUFFER_SIZE];
     }
-    raf.read(buffer, 0, buffer.length);
+    ByteBuffer byteBuffer = ByteBuffer.wrap(buffer);
+    fileChannel.read(byteBuffer);
     bufferPos = 0;
   }
 
@@ -190,7 +195,7 @@ public class TailFile {
     LineResult lineResult = null;
     while (true) {
       if (bufferPos == NEED_READING) {
-        if (raf.getFilePointer() < raf.length()) {
+        if (fileChannel.position() < fileChannel.size()) {
           readFile();
         } else {
           if (oldBuffer.length > 0) {
@@ -237,8 +242,8 @@ public class TailFile {
 
   public void close() {
     try {
-      raf.close();
-      raf = null;
+      fileChannel.close();
+      fileChannel = null;
       long now = System.currentTimeMillis();
       setLastUpdated(now);
     } catch (IOException e) {

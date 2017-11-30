@@ -282,7 +282,7 @@ public class TaildirSource extends AbstractSource implements
   private void closeTailFiles() throws IOException, InterruptedException {
     for (long inode : idleInodes) {
       TailFile tf = reader.getTailFiles().get(inode);
-      if (tf.getRaf() != null) { // when file has not closed yet
+      if (tf.getFileChannel() != null) { // when file has not closed yet
         tailFileProcess(tf, false);
         tf.close();
         logger.info("Closed file: " + tf.getPath() + ", inode: " + inode + ", pos: " + tf.getPos());
@@ -300,7 +300,7 @@ public class TaildirSource extends AbstractSource implements
       try {
         long now = System.currentTimeMillis();
         for (TailFile tf : reader.getTailFiles().values()) {
-          if (tf.getLastUpdated() + idleTimeout < now && tf.getRaf() != null) {
+          if (tf.getLastUpdated() + idleTimeout < now && tf.getFileChannel() != null) {
             idleInodes.add(tf.getInode());
           }
         }
